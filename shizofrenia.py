@@ -206,11 +206,11 @@ base_html = """
     </script>
     <style>
         body {
-            background-color: #0f172a; /* dark blue */
+            background-color: #0f172a;
             color: #e2e8f0;
         }
         .bg-white, .bg-gray-900 {
-            background-color: #1e3a8a; /* darker blue */
+            background-color: #1e3a8a;
         }
         .text-gray-900 {
             color: #e2e8f0;
@@ -277,7 +277,7 @@ base_html = """
     <div class="max-w-3xl mx-auto py-8 px-4">
         <div class="mb-6 flex justify-between items-center">
             <div class="flex items-center">
-                <img src="{{ url_for('filename='nerest.png') }}" alt="NerestReddit Logo" class="h-10 mr-2">
+                <img src="{{ url_for('serve_static', filename='nerest.png') }}" alt="NerestReddit Logo" class="h-10 mr-2">
                 <h1 class="text-3xl font-bold text-red-500"><a href='{{ url_for('index') }}' class="nav-link">NerestReddit</a></h1>
             </div>
             <div class="space-x-4">
@@ -297,9 +297,9 @@ base_html = """
 </html>
 """
 
-@app.route('<filename>')
-def serve_image(filename):
-    return send_from_directory(os.path.dirname(__file__), filename)
+@app.route('/static/<filename>')
+def serve_static(filename):
+    return send_from_directory('.', filename)
 
 @app.route('/')
 def index():
@@ -527,10 +527,8 @@ def add_comment(post_id):
     if not content:
         return redirect(url_for('view_post', post_id=post_id))
 
-    
     post = Post.query.get_or_404(post_id)
 
-    
     if parent_id:
         parent_comment = Comment.query.get(parent_id)
         if not parent_comment or parent_comment.post_id != post_id:
@@ -558,16 +556,13 @@ def like_post(post_id):
 
     post = Post.query.get_or_404(post_id)
 
-    
     like = Like.query.filter_by(user_id=user_id, post_id=post_id).first()
 
     if like:
-        
         db.session.delete(like)
         post.likes -= 1
         liked = False
     else:
-        
         new_like = Like(user_id=user_id, post_id=post_id)
         db.session.add(new_like)
         post.likes += 1
@@ -586,9 +581,7 @@ def delete_post(post_id):
     if post.author != session['username']:
         return jsonify({"success": False, "message": "У вас нет прав для удаления этого поста"}), 403
     
-    
     Like.query.filter_by(post_id=post_id).delete()
-    
     
     child_comments = Comment.query.filter(Comment.parent_id.isnot(None)).all()
     for comment in child_comments:
@@ -596,9 +589,7 @@ def delete_post(post_id):
            Comment.query.filter_by(id=comment.parent_id).first().post_id == post_id:
             db.session.delete(comment)
     
-    
     Comment.query.filter_by(post_id=post_id).delete()
-    
     
     db.session.delete(post)
     db.session.commit()
