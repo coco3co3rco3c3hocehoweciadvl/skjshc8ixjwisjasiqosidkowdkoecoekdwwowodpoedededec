@@ -39,8 +39,6 @@ class Like(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     post_id = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=False)
-
-    # Unique constraint to ensure a user can like a post only once
     __table_args__ = (db.UniqueConstraint('user_id', 'post_id'),)
 
 def is_logged_in():
@@ -279,7 +277,7 @@ base_html = """
     <div class="max-w-3xl mx-auto py-8 px-4">
         <div class="mb-6 flex justify-between items-center">
             <div class="flex items-center">
-                <img src="{{ url_for('serve_image', filename='nerest.png') }}" alt="NerestReddit Logo" class="h-10 mr-2">
+                <img src="{{ url_for('filename='nerest.png') }}" alt="NerestReddit Logo" class="h-10 mr-2">
                 <h1 class="text-3xl font-bold text-red-500"><a href='{{ url_for('index') }}' class="nav-link">NerestReddit</a></h1>
             </div>
             <div class="space-x-4">
@@ -299,7 +297,7 @@ base_html = """
 </html>
 """
 
-@app.route('/serve_image/<filename>')
+@app.route('<filename>')
 def serve_image(filename):
     return send_from_directory(os.path.dirname(__file__), filename)
 
