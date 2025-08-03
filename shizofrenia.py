@@ -5,7 +5,7 @@ import os
 from datetime import datetime
 
 app = Flask(__name__)
-app.secret_key = 'super_secret_key'
+app.secret_key = 'SCIDIWODKOWDJSKJCKEJCKENCJCJENEJCHSKXJSOKXOWKSSOWKDOKW'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///nerestreddit.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SESSION_TYPE'] = 'filesystem'
