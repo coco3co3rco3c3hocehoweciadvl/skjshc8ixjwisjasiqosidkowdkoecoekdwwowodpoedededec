@@ -92,9 +92,9 @@ def create_notification(user_id, notification_type, message, from_user, post_id=
     db.session.add(notification)
     db.session.commit()
 
-@app.route('/nerest.png')
+@app.route('/nerest.PNG')
 def serve_logo():
-    return send_from_directory('.', 'nerest.png')
+    return send_from_directory('.', 'nerest.PNG')
 
 base_html = """
 <!DOCTYPE html>
