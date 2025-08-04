@@ -94,6 +94,14 @@ def create_notification(user_id, notification_type, message, from_user, post_id=
 def serve_logo():
     return send_from_directory('.', 'nerest.PNG')
 
+@app.before_request
+def check_session():
+    username = session.get('username')
+    if username:
+        user = User.query.filter_by(username=username).first()
+        if not user:
+            session.pop('username', None)
+
 base_html = """
 <!DOCTYPE html>
 <html lang="ru">
@@ -104,7 +112,6 @@ base_html = """
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script>
         let notificationCount = {{ get_unread_notifications_count() }};
-
         function updateNotificationBadge() {
             const badge = document.getElementById('notification-badge');
             if (badge) {
@@ -116,7 +123,6 @@ base_html = """
                 }
             }
         }
-
         function showNotification(message, type) {
             const notification = document.createElement('div');
             notification.className = `fixed top-4 right-4 p-4 rounded-md shadow-md transform transition-all duration-500 ease-in-out translate-x-full opacity-0 ${type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white z-50`;
@@ -139,17 +145,14 @@ base_html = """
                 }, 500);
             }, 3000);
         }
-
         {% if notification %}
             document.addEventListener('DOMContentLoaded', function() {
                 showNotification("{{ notification.message }}", "{{ notification.type }}");
             });
         {% endif %}
-
         async function likePost(postId) {
             const likeBtn = document.getElementById(`like-btn-${postId}`);
             likeBtn.classList.add('animate-pulse');
-
             try {
                 const response = await fetch(`/like/${postId}`, {
                     method: 'POST',
@@ -180,12 +183,10 @@ base_html = """
                 likeBtn.classList.remove('animate-pulse');
             }
         }
-
         async function deletePost(postId) {
             if (confirm('Вы уверены, что хотите удалить этот пост?')) {
                 const deleteBtn = document.querySelector(`button[onclick="deletePost(${postId})"]`);
                 deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-
                 try {
                     const response = await fetch(`/delete/${postId}`, {
                         method: 'POST',
@@ -212,16 +213,13 @@ base_html = """
                 }
             }
         }
-
         async function submitForm(event, successMessage) {
             event.preventDefault();
             const form = event.target;
             const submitBtn = form.querySelector('button[type="submit"]');
             const originalText = submitBtn.innerHTML;
-
             submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Загрузка...';
             submitBtn.disabled = true;
-
             try {
                 const formData = new FormData(form);
                 const response = await fetch(form.action, {
@@ -229,7 +227,6 @@ base_html = """
                     body: formData
                 });
                 const data = await response.json();
-
                 if (data.success) {
                     showNotification(data.message || successMessage, 'success');
                     if (data.redirect) {
@@ -247,19 +244,15 @@ base_html = """
                 submitBtn.disabled = false;
             }
         }
-
         function registerUser(event) {
             return submitForm(event, 'Регистрация успешна!');
         }
-
         function loginUser(event) {
             return submitForm(event, 'Вход выполнен!');
         }
-
         function createPost(event) {
             return submitForm(event, 'Пост создан!');
         }
-
         function toggleReplyForm(commentId) {
             const replyForm = document.getElementById(`reply-form-${commentId}`);
             replyForm.classList.toggle('hidden');
@@ -269,7 +262,6 @@ base_html = """
                 if (textarea) textarea.focus();
             }
         }
-
         function toggleNotifications() {
             const dropdown = document.getElementById('notifications-dropdown');
             dropdown.classList.toggle('hidden');
@@ -277,13 +269,11 @@ base_html = """
                 loadNotifications();
             }
         }
-
         async function loadNotifications() {
             try {
                 const response = await fetch('/notifications');
                 const data = await response.json();
                 const container = document.getElementById('notifications-container');
-
                 if (data.notifications && data.notifications.length > 0) {
                     container.innerHTML = data.notifications.map(notif => `
                         <div class="p-3 border-b border-blue-700 ${notif.is_read ? 'opacity-60' : 'bg-blue-800'} hover:bg-blue-700 transition-colors">
@@ -296,7 +286,6 @@ base_html = """
                 } else {
                     container.innerHTML = '<div class="p-3 text-center text-blue-300">Нет уведомлений</div>';
                 }
-
                 if (data.unread_count !== notificationCount) {
                     notificationCount = data.unread_count;
                     updateNotificationBadge();
@@ -305,7 +294,6 @@ base_html = """
                 console.error('Error loading notifications:', error);
             }
         }
-
         async function markAllNotificationsRead() {
             try {
                 await fetch('/notifications/mark-read', { method: 'POST' });
@@ -316,20 +304,16 @@ base_html = """
                 console.error('Error marking notifications as read:', error);
             }
         }
-
         document.addEventListener('DOMContentLoaded', function() {
             updateNotificationBadge();
-
             document.addEventListener('click', function(e) {
                 const notifDropdown = document.getElementById('notifications-dropdown');
                 const notifButton = document.querySelector('[onclick="toggleNotifications()"]');
-
                 if (!notifDropdown.contains(e.target) && !notifButton.contains(e.target)) {
                     notifDropdown.classList.add('hidden');
                 }
             });
         });
-
         setInterval(() => {
             if (document.getElementById('notifications-dropdown') && !document.getElementById('notifications-dropdown').classList.contains('hidden')) {
                 loadNotifications();
@@ -433,6 +417,30 @@ base_html = """
             align-items: center;
             justify-content: center;
             font-weight: bold;
+        }
+        .animate-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: .5;
+            }
+        }
+        .animate-bounce {
+            animation: bounce 1s infinite;
+        }
+        @keyframes bounce {
+            0%, 100% {
+                transform: translateY(-25%);
+                animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+            }
+            50% {
+                transform: none;
+                animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+            }
         }
     </style>
 </head>
@@ -619,7 +627,6 @@ def view_post(post_id):
         return redirect(url_for('login'))
     post = Post.query.get_or_404(post_id)
     comments = Comment.query.filter_by(post_id=post_id, parent_id=None).order_by(Comment.created_at).all()
-
     def render_comments(comments):
         comments_html = ""
         for comment in comments:
@@ -650,7 +657,6 @@ def view_post(post_id):
             </div>
             """
         return comments_html
-
     comments_html = render_comments(comments)
     content = f"""
     <div class="post-container">
@@ -776,19 +782,14 @@ def delete_post(post_id):
     post = Post.query.get_or_404(post_id)
     if post.author != session['username']:
         return jsonify({"success": False, "message": "У вас нет прав для удаления этого поста"}), 403
-
     Like.query.filter_by(post_id=post_id).delete()
     Notification.query.filter_by(post_id=post_id).delete()
-
     comments_to_delete = Comment.query.filter_by(post_id=post_id).all()
     for comment in comments_to_delete:
         Notification.query.filter_by(comment_id=comment.id).delete()
-
     Comment.query.filter_by(post_id=post_id).delete()
-
     db.session.delete(post)
     db.session.commit()
-
     return jsonify({
         "success": True,
         "message": "Пост успешно удален",
@@ -835,4 +836,4 @@ def mark_notifications_read():
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=True)
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=False)
