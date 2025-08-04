@@ -102,6 +102,15 @@ def check_session():
         if not user:
             session.pop('username', None)
 
+def checkActionDelay():
+    last_action_time = session.get('last_action_time')
+    current_time = datetime.now().timestamp()
+    delay = 10
+    if last_action_time and current_time - last_action_time < delay:
+        return False
+    session['last_action_time'] = current_time
+    return True
+
 base_html = """
 <!DOCTYPE html>
 <html lang="ru">
@@ -641,7 +650,6 @@ def view_post(post_id):
         return redirect(url_for('login'))
     post = Post.query.get_or_404(post_id)
     comments = Comment.query.filter_by(post_id=post_id, parent_id=None).order_by(Comment.created_at).all()
-
     def render_comments(comments):
         comments_html = ""
         for comment in comments:
@@ -672,7 +680,6 @@ def view_post(post_id):
             </div>
             """
         return comments_html
-
     comments_html = render_comments(comments)
     content = f"""
     <div class="post-container">
