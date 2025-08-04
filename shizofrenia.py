@@ -650,6 +650,7 @@ def view_post(post_id):
         return redirect(url_for('login'))
     post = Post.query.get_or_404(post_id)
     comments = Comment.query.filter_by(post_id=post_id, parent_id=None).order_by(Comment.created_at).all()
+
     def render_comments(comments):
         comments_html = ""
         for comment in comments:
@@ -680,6 +681,7 @@ def view_post(post_id):
             </div>
             """
         return comments_html
+
     comments_html = render_comments(comments)
     content = f"""
     <div class="post-container">
@@ -700,7 +702,30 @@ def view_post(post_id):
                 <i class="fas fa-comments mr-2"></i>Комментарии
             </h3>
             <div class="mb-6">
-                <form action="{url_for('add_comment', post_id=post.id)}" method="post" class="flex flex-col gap-2" onsubmit="event => {{ if (checkActionDelay()) {{ event.preventDefault(); const form = event.target; const formData = new FormData(form); fetch(form.action, {{ method: 'POST', body: formData }}).then(response => response.json()).then(data => {{ if (data.success) {{ showNotification(data.message, 'success'); setTimeout(() => {{ window.location.href = data.redirect; }}, 1000); }} else {{ showNotification(data.message, 'error'); }} }}).catch(error => {{ showNotification('Произошла ошибка', 'error'); }}); }} }} else {{ showNotification('Подождите перед следующим действием!', 'error'); return false; }}">
+                <form action="{url_for('add_comment', post_id=post.id)}" method="post" class="flex flex-col gap-2" onsubmit="event => {{
+                    event.preventDefault();
+                    if (!checkActionDelay()) {{
+                        showNotification('Подождите перед следующим действием!', 'error');
+                        return false;
+                    }}
+                    const form = event.target;
+                    const formData = new FormData(form);
+                    fetch(form.action, {{
+                        method: 'POST',
+                        body: formData
+                    }}).then(response => response.json()).then(data => {{
+                        if (data.success) {{
+                            showNotification(data.message, 'success');
+                            setTimeout(() => {{
+                                window.location.href = data.redirect;
+                            }}, 1000);
+                        }} else {{
+                            showNotification(data.message, 'error');
+                        }}
+                    }}).catch(error => {{
+                        showNotification('Произошла ошибка', 'error');
+                    }});
+                }}">
                     <textarea name="content" class="w-full p-2 border rounded h-24 bg-blue-900 text-gray-200 focus:border-blue-400 transition-colors resize-none" placeholder="Добавить комментарий..." required></textarea>
                     <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded self-end hover:bg-blue-600 transition-colors transform hover:scale-105">Отправить</button>
                 </form>
