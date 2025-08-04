@@ -304,6 +304,18 @@ base_html = """
                 console.error('Error marking notifications as read:', error);
             }
         }
+        function checkActionDelay() {
+            const lastActionTime = sessionStorage.getItem('lastActionTime');
+            const currentTime = new Date().getTime();
+            const delay = 10000;
+            if (lastActionTime && currentTime - lastActionTime < delay) {
+                const remainingTime = Math.ceil((delay - (currentTime - lastActionTime)) / 1000);
+                showNotification(`Подождите ${remainingTime} секунд перед следующим действием!`, 'error');
+                return false;
+            }
+            sessionStorage.setItem('lastActionTime', currentTime);
+            return true;
+        }
         document.addEventListener('DOMContentLoaded', function() {
             updateNotificationBadge();
             document.addEventListener('click', function(e) {
@@ -599,6 +611,8 @@ def create_post():
     error = ""
     notification = None
     if request.method == 'POST':
+        if not checkActionDelay():
+            return jsonify({"success": False, "message": "Подождите перед следующим действием!"})
         title = request.form['title'].strip()
         content = request.form['content'].strip()
         if not title or not content:
@@ -612,7 +626,7 @@ def create_post():
     <div class="bg-blue-900 p-6 rounded-xl shadow-md max-w-2xl mx-auto">
         <h2 class="text-xl font-bold mb-4 text-blue-200">Новый пост</h2>
         {"<p class='text-red-400 mb-2'>" + error + "</p>" if error else ""}
-        <form method="post" class="space-y-4" onsubmit="createPost(event)">
+        <form method="post" class="space-y-4" onsubmit="event => {{ if checkActionDelay() {{ createPost(event) }} else {{ event.preventDefault(); showNotification('Подождите перед следующим действием!', 'error'); return false; }}}">
             <input name="title" class="w-full p-2 border rounded bg-blue-800 text-blue-100 focus:border-blue-400 transition-colors" placeholder="Заголовок" required>
             <textarea name="content" class="w-full p-2 border rounded h-32 bg-blue-800 text-blue-100 focus:border-blue-400 transition-colors resize-none" placeholder="Содержание..." required></textarea>
             <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded w-full hover:bg-blue-500 transition-colors transform hover:scale-105">Опубликовать</button>
@@ -677,7 +691,7 @@ def view_post(post_id):
                 <i class="fas fa-comments mr-2"></i>Комментарии
             </h3>
             <div class="mb-6">
-                <form action="{url_for('add_comment', post_id=post.id)}" method="post" class="flex flex-col gap-2">
+                <form action="{url_for('add_comment', post_id=post.id)}" method="post" class="flex flex-col gap-2" onsubmit="event => {{ if (checkActionDelay()) {{ event.preventDefault(); const form = event.target; const formData = new FormData(form); fetch(form.action, {{ method: 'POST', body: formData }}).then(response => response.json()).then(data => {{ if (data.success) {{ showNotification(data.message, 'success'); setTimeout(() => {{ window.location.href = data.redirect; }}, 1000); }} else {{ showNotification(data.message, 'error'); }} }}).catch(error => {{ showNotification('Произошла ошибка', 'error'); }}); }} }} else {{ showNotification('Подождите перед следующим действием!', 'error'); return false; }}">
                     <textarea name="content" class="w-full p-2 border rounded h-24 bg-blue-900 text-gray-200 focus:border-blue-400 transition-colors resize-none" placeholder="Добавить комментарий..." required></textarea>
                     <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded self-end hover:bg-blue-600 transition-colors transform hover:scale-105">Отправить</button>
                 </form>
@@ -694,15 +708,17 @@ def view_post(post_id):
 def add_comment(post_id):
     if not is_logged_in():
         return redirect(url_for('login'))
+    if not checkActionDelay():
+        return jsonify({"success": False, "message": "Подождите перед следующим действием!"})
     content = request.form['content'].strip()
     parent_id = request.form.get('parent_id')
     if not content:
-        return redirect(url_for('view_post', post_id=post_id))
+        return jsonify({"success": False, "message": "Заполните все поля."})
     post = Post.query.get_or_404(post_id)
     if parent_id:
         parent_comment = Comment.query.get(parent_id)
         if not parent_comment or parent_comment.post_id != post_id:
-            return redirect(url_for('view_post', post_id=post_id))
+            return jsonify({"success": False, "message": "Неверный комментарий."})
     comment = Comment(
         content=content,
         author=session['username'],
@@ -743,7 +759,7 @@ def add_comment(post_id):
                 post_id=post_id,
                 comment_id=comment.id
             )
-    return redirect(url_for('view_post', post_id=post_id))
+    return jsonify({"success": True, "message": "Комментарий успешно добавлен!", "redirect": url_for('view_post', post_id=post_id)})
 
 @app.route('/like/<int:post_id>', methods=['POST'])
 def like_post(post_id):
