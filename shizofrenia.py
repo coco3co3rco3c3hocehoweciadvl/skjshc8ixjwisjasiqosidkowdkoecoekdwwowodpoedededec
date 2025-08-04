@@ -132,6 +132,7 @@ base_html = """
                 }
             }
         }
+
         function showNotification(message, type) {
             const notification = document.createElement('div');
             notification.className = `fixed top-4 right-4 p-4 rounded-md shadow-md transform transition-all duration-500 ease-in-out translate-x-full opacity-0 ${type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white z-50`;
@@ -154,11 +155,13 @@ base_html = """
                 }, 500);
             }, 3000);
         }
+
         {% if notification %}
             document.addEventListener('DOMContentLoaded', function() {
                 showNotification("{{ notification.message }}", "{{ notification.type }}");
             });
         {% endif %}
+
         async function likePost(postId) {
             const likeBtn = document.getElementById(`like-btn-${postId}`);
             likeBtn.classList.add('animate-pulse');
@@ -192,6 +195,7 @@ base_html = """
                 likeBtn.classList.remove('animate-pulse');
             }
         }
+
         async function deletePost(postId) {
             if (confirm('Вы уверены, что хотите удалить этот пост?')) {
                 const deleteBtn = document.querySelector(`button[onclick="deletePost(${postId})"]`);
@@ -222,6 +226,7 @@ base_html = """
                 }
             }
         }
+
         async function submitForm(event, successMessage) {
             event.preventDefault();
             const form = event.target;
@@ -253,15 +258,19 @@ base_html = """
                 submitBtn.disabled = false;
             }
         }
+
         function registerUser(event) {
             return submitForm(event, 'Регистрация успешна!');
         }
+
         function loginUser(event) {
             return submitForm(event, 'Вход выполнен!');
         }
+
         function createPost(event) {
             return submitForm(event, 'Пост создан!');
         }
+
         function toggleReplyForm(commentId) {
             const replyForm = document.getElementById(`reply-form-${commentId}`);
             replyForm.classList.toggle('hidden');
@@ -271,6 +280,7 @@ base_html = """
                 if (textarea) textarea.focus();
             }
         }
+
         function toggleNotifications() {
             const dropdown = document.getElementById('notifications-dropdown');
             dropdown.classList.toggle('hidden');
@@ -278,6 +288,7 @@ base_html = """
                 loadNotifications();
             }
         }
+
         async function loadNotifications() {
             try {
                 const response = await fetch('/notifications');
@@ -303,6 +314,7 @@ base_html = """
                 console.error('Error loading notifications:', error);
             }
         }
+
         async function markAllNotificationsRead() {
             try {
                 await fetch('/notifications/mark-read', { method: 'POST' });
@@ -313,18 +325,28 @@ base_html = """
                 console.error('Error marking notifications as read:', error);
             }
         }
-        function checkActionDelay() {
-            const lastActionTime = sessionStorage.getItem('lastActionTime');
-            const currentTime = new Date().getTime();
-            const delay = 10000;
-            if (lastActionTime && currentTime - lastActionTime < delay) {
-                const remainingTime = Math.ceil((delay - (currentTime - lastActionTime)) / 1000);
-                showNotification(`Подождите ${remainingTime} секунд перед следующим действием!`, 'error');
+
+        async function checkActionDelay() {
+            try {
+                const response = await fetch('/check-action-delay', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                const data = await response.json();
+                if (!data.success) {
+                    showNotification(data.message, 'error');
+                    return false;
+                }
+                return true;
+            } catch (error) {
+                console.error('Error checking action delay:', error);
                 return false;
             }
-            sessionStorage.setItem('lastActionTime', currentTime);
-            return true;
         }
+
         document.addEventListener('DOMContentLoaded', function() {
             updateNotificationBadge();
             document.addEventListener('click', function(e) {
@@ -335,6 +357,7 @@ base_html = """
                 }
             });
         });
+
         setInterval(() => {
             if (document.getElementById('notifications-dropdown') && !document.getElementById('notifications-dropdown').classList.contains('hidden')) {
                 loadNotifications();
@@ -650,7 +673,6 @@ def view_post(post_id):
         return redirect(url_for('login'))
     post = Post.query.get_or_404(post_id)
     comments = Comment.query.filter_by(post_id=post_id, parent_id=None).order_by(Comment.created_at).all()
-
     def render_comments(comments):
         comments_html = ""
         for comment in comments:
@@ -681,7 +703,6 @@ def view_post(post_id):
             </div>
             """
         return comments_html
-
     comments_html = render_comments(comments)
     content = f"""
     <div class="post-container">
@@ -704,26 +725,27 @@ def view_post(post_id):
             <div class="mb-6">
                 <form action="{url_for('add_comment', post_id=post.id)}" method="post" class="flex flex-col gap-2" onsubmit="event => {{
                     event.preventDefault();
-                    if (!checkActionDelay()) {{
-                        showNotification('Подождите перед следующим действием!', 'error');
-                        return false;
-                    }}
-                    const form = event.target;
-                    const formData = new FormData(form);
-                    fetch(form.action, {{
-                        method: 'POST',
-                        body: formData
-                    }}).then(response => response.json()).then(data => {{
-                        if (data.success) {{
-                            showNotification(data.message, 'success');
-                            setTimeout(() => {{
-                                window.location.href = data.redirect;
-                            }}, 1000);
-                        }} else {{
-                            showNotification(data.message, 'error');
+                    checkActionDelay().then(canProceed => {{
+                        if (!canProceed) {{
+                            return false;
                         }}
-                    }}).catch(error => {{
-                        showNotification('Произошла ошибка', 'error');
+                        const form = event.target;
+                        const formData = new FormData(form);
+                        fetch(form.action, {{
+                            method: 'POST',
+                            body: formData
+                        }}).then(response => response.json()).then(data => {{
+                            if (data.success) {{
+                                showNotification(data.message, 'success');
+                                setTimeout(() => {{
+                                    window.location.href = data.redirect;
+                                }}, 1000);
+                            }} else {{
+                                showNotification(data.message, 'error');
+                            }}
+                        }}).catch(error => {{
+                            showNotification('Произошла ошибка', 'error');
+                        }});
                     }});
                 }}">
                     <textarea name="content" class="w-full p-2 border rounded h-24 bg-blue-900 text-gray-200 focus:border-blue-400 transition-colors resize-none" placeholder="Добавить комментарий..." required></textarea>
@@ -741,7 +763,7 @@ def view_post(post_id):
 @app.route('/post/<int:post_id>/comment', methods=['POST'])
 def add_comment(post_id):
     if not is_logged_in():
-        return redirect(url_for('login'))
+        return jsonify({"success": False, "message": "Необходимо войти"})
     if not checkActionDelay():
         return jsonify({"success": False, "message": "Подождите перед следующим действием!"})
     content = request.form['content'].strip()
@@ -881,6 +903,16 @@ def mark_notifications_read():
         return jsonify({"error": "User not found"}), 401
     Notification.query.filter_by(user_id=user_id, is_read=False).update({'is_read': True})
     db.session.commit()
+    return jsonify({"success": True})
+
+@app.route('/check-action-delay', methods=['POST'])
+def check_action_delay():
+    if not checkActionDelay():
+        last_action_time = session.get('last_action_time')
+        current_time = datetime.now().timestamp()
+        delay = 10
+        remaining_time = int(delay - (current_time - last_action_time))
+        return jsonify({"success": False, "message": f"Подождите {remaining_time} секунд перед следующим действием!"})
     return jsonify({"success": True})
 
 if __name__ == '__main__':
