@@ -9,9 +9,7 @@ app.secret_key = 'SCIDIWODKOWDJSKJCKEJCKENCJCJENEJCHSKXJSOKXOWKSSOWKDOKW'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///nerestreddit.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SESSION_TYPE'] = 'filesystem'
-
 db = SQLAlchemy(app)
-
 MSK_TZ = timezone(timedelta(hours=3))
 
 def get_msk_time():
@@ -106,7 +104,7 @@ base_html = """
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script>
         let notificationCount = {{ get_unread_notifications_count() }};
-        
+
         function updateNotificationBadge() {
             const badge = document.getElementById('notification-badge');
             if (badge) {
@@ -129,11 +127,9 @@ base_html = """
                 </div>
             `;
             document.body.appendChild(notification);
-
             setTimeout(() => {
                 notification.classList.remove('translate-x-full', 'opacity-0');
             }, 100);
-
             setTimeout(() => {
                 notification.classList.add('translate-x-full', 'opacity-0');
                 setTimeout(() => {
@@ -153,7 +149,7 @@ base_html = """
         async function likePost(postId) {
             const likeBtn = document.getElementById(`like-btn-${postId}`);
             likeBtn.classList.add('animate-pulse');
-            
+
             try {
                 const response = await fetch(`/like/${postId}`, {
                     method: 'POST',
@@ -168,7 +164,6 @@ base_html = """
                     likeCount.textContent = data.likes;
                     likeCount.classList.add('animate-bounce');
                     setTimeout(() => likeCount.classList.remove('animate-bounce'), 1000);
-
                     if (data.liked) {
                         likeBtn.innerHTML = '<i class="fas fa-heart text-red-500 animate-pulse"></i>';
                         likeBtn.classList.add('animate-bounce');
@@ -190,7 +185,7 @@ base_html = """
             if (confirm('Вы уверены, что хотите удалить этот пост?')) {
                 const deleteBtn = document.querySelector(`button[onclick="deletePost(${postId})"]`);
                 deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-                
+
                 try {
                     const response = await fetch(`/delete/${postId}`, {
                         method: 'POST',
@@ -223,10 +218,10 @@ base_html = """
             const form = event.target;
             const submitBtn = form.querySelector('button[type="submit"]');
             const originalText = submitBtn.innerHTML;
-            
+
             submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Загрузка...';
             submitBtn.disabled = true;
-            
+
             try {
                 const formData = new FormData(form);
                 const response = await fetch(form.action, {
@@ -234,7 +229,7 @@ base_html = """
                     body: formData
                 });
                 const data = await response.json();
-                
+
                 if (data.success) {
                     showNotification(data.message || successMessage, 'success');
                     if (data.redirect) {
@@ -288,7 +283,7 @@ base_html = """
                 const response = await fetch('/notifications');
                 const data = await response.json();
                 const container = document.getElementById('notifications-container');
-                
+
                 if (data.notifications && data.notifications.length > 0) {
                     container.innerHTML = data.notifications.map(notif => `
                         <div class="p-3 border-b border-blue-700 ${notif.is_read ? 'opacity-60' : 'bg-blue-800'} hover:bg-blue-700 transition-colors">
@@ -301,7 +296,7 @@ base_html = """
                 } else {
                     container.innerHTML = '<div class="p-3 text-center text-blue-300">Нет уведомлений</div>';
                 }
-                
+
                 if (data.unread_count !== notificationCount) {
                     notificationCount = data.unread_count;
                     updateNotificationBadge();
@@ -324,11 +319,11 @@ base_html = """
 
         document.addEventListener('DOMContentLoaded', function() {
             updateNotificationBadge();
-            
+
             document.addEventListener('click', function(e) {
                 const notifDropdown = document.getElementById('notifications-dropdown');
                 const notifButton = document.querySelector('[onclick="toggleNotifications()"]');
-                
+
                 if (!notifDropdown.contains(e.target) && !notifButton.contains(e.target)) {
                     notifDropdown.classList.add('hidden');
                 }
@@ -510,20 +505,17 @@ def index():
         </div>
         """ for post in posts
     )
-    return render_template_string(base_html, title="Главная", content=posts_html)
+    return render_template_string(base_html, title="Главная", content=posts_html, get_unread_notifications_count=get_unread_notifications_count)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if is_logged_in():
         return redirect(url_for('index'))
-
     error = ""
     notification = None
-
     if request.method == 'POST':
         username = request.form['username'].strip()
         password = request.form['password'].strip()
-
         if not username or not password:
             return jsonify({"success": False, "message": "Пожалуйста, заполните все поля."})
         elif User.query.filter_by(username=username).first():
@@ -535,8 +527,7 @@ def register():
             db.session.commit()
             session['username'] = new_user.username
             return jsonify({"success": True, "message": "Аккаунт успешно создан!", "redirect": url_for('index')})
-
-    return render_template_string(base_html, title="Регистрация", content=render_register_form(error), notification=notification)
+    return render_template_string(base_html, title="Регистрация", content=render_register_form(error), notification=notification, get_unread_notifications_count=get_unread_notifications_count)
 
 def render_register_form(error):
     return f"""
@@ -570,14 +561,11 @@ def render_login_form(error):
 def login():
     if is_logged_in():
         return redirect(url_for('index'))
-
     error = ""
     notification = None
-
     if request.method == 'POST':
         username = request.form['username'].strip()
         password = request.form['password'].strip()
-
         if not username or not password:
             return jsonify({"success": False, "message": "Пожалуйста, заполните все поля."})
         else:
@@ -587,8 +575,7 @@ def login():
                 return jsonify({"success": True, "message": "Успешный вход!", "redirect": url_for('index')})
             else:
                 return jsonify({"success": False, "message": "Неверные имя пользователя или пароль."})
-
-    return render_template_string(base_html, title="Вход", content=render_login_form(error), notification=notification)
+    return render_template_string(base_html, title="Вход", content=render_login_form(error), notification=notification, get_unread_notifications_count=get_unread_notifications_count)
 
 @app.route('/logout')
 def logout():
@@ -603,7 +590,6 @@ def create_post():
         return redirect(url_for('login'))
     error = ""
     notification = None
-
     if request.method == 'POST':
         title = request.form['title'].strip()
         content = request.form['content'].strip()
@@ -614,7 +600,6 @@ def create_post():
             db.session.add(post)
             db.session.commit()
             return jsonify({"success": True, "message": "Пост успешно создан!", "redirect": url_for('index')})
-
     form = f"""
     <div class="bg-blue-900 p-6 rounded-xl shadow-md max-w-2xl mx-auto">
         <h2 class="text-xl font-bold mb-4 text-blue-200">Новый пост</h2>
@@ -626,13 +611,12 @@ def create_post():
         </form>
     </div>
     """
-    return render_template_string(base_html, title="Создать пост", content=form, notification=notification)
+    return render_template_string(base_html, title="Создать пост", content=form, notification=notification, get_unread_notifications_count=get_unread_notifications_count)
 
 @app.route('/post/<int:post_id>')
 def view_post(post_id):
     if not is_logged_in():
         return redirect(url_for('login'))
-
     post = Post.query.get_or_404(post_id)
     comments = Comment.query.filter_by(post_id=post_id, parent_id=None).order_by(Comment.created_at).all()
 
@@ -668,7 +652,6 @@ def view_post(post_id):
         return comments_html
 
     comments_html = render_comments(comments)
-
     content = f"""
     <div class="post-container">
         <h1 class="text-2xl font-bold post-title mb-2">{post.title}</h1>
@@ -683,7 +666,6 @@ def view_post(post_id):
                 {f'<button onclick="deletePost({post.id})" class="text-red-500 hover:text-red-300 transition-colors"><i class="fas fa-trash"></i></button>' if session.get('username') == post.author else ''}
             </div>
         </div>
-
         <div class="mt-8">
             <h3 class="text-xl font-semibold mb-4 text-blue-200">
                 <i class="fas fa-comments mr-2"></i>Комментарии
@@ -700,27 +682,21 @@ def view_post(post_id):
         </div>
     </div>
     """
-
-    return render_template_string(base_html, title=post.title, content=content)
+    return render_template_string(base_html, title=post.title, content=content, get_unread_notifications_count=get_unread_notifications_count)
 
 @app.route('/post/<int:post_id>/comment', methods=['POST'])
 def add_comment(post_id):
     if not is_logged_in():
         return redirect(url_for('login'))
-
     content = request.form['content'].strip()
     parent_id = request.form.get('parent_id')
-
     if not content:
         return redirect(url_for('view_post', post_id=post_id))
-
     post = Post.query.get_or_404(post_id)
-
     if parent_id:
         parent_comment = Comment.query.get(parent_id)
         if not parent_comment or parent_comment.post_id != post_id:
             return redirect(url_for('view_post', post_id=post_id))
-
     comment = Comment(
         content=content,
         author=session['username'],
@@ -729,7 +705,6 @@ def add_comment(post_id):
     )
     db.session.add(comment)
     db.session.commit()
-
     post_author_user = User.query.filter_by(username=post.author).first()
     if post_author_user and post_author_user.username != session['username']:
         if parent_id:
@@ -750,7 +725,6 @@ def add_comment(post_id):
                 post_id=post_id,
                 comment_id=comment.id
             )
-
     if parent_id:
         parent_comment = Comment.query.get(parent_id)
         parent_author_user = User.query.filter_by(username=parent_comment.author).first()
@@ -763,22 +737,17 @@ def add_comment(post_id):
                 post_id=post_id,
                 comment_id=comment.id
             )
-
     return redirect(url_for('view_post', post_id=post_id))
 
 @app.route('/like/<int:post_id>', methods=['POST'])
 def like_post(post_id):
     if not is_logged_in():
         return jsonify({"success": False, "error": "Необходимо войти"}), 401
-
     user_id = get_user_id()
     if not user_id:
         return jsonify({"success": False, "error": "Пользователь не найден"}), 401
-
     post = Post.query.get_or_404(post_id)
-
     like = Like.query.filter_by(user_id=user_id, post_id=post_id).first()
-
     if like:
         db.session.delete(like)
         post.likes -= 1
@@ -788,7 +757,6 @@ def like_post(post_id):
         db.session.add(new_like)
         post.likes += 1
         liked = True
-
         post_author_user = User.query.filter_by(username=post.author).first()
         if post_author_user and post_author_user.id != user_id:
             create_notification(
@@ -798,35 +766,32 @@ def like_post(post_id):
                 session['username'],
                 post_id=post_id
             )
-
     db.session.commit()
-
     return jsonify({"success": True, "likes": post.likes, "liked": liked})
 
 @app.route('/delete/<int:post_id>', methods=['POST'])
 def delete_post(post_id):
     if not is_logged_in():
         return jsonify({"success": False, "message": "Необходимо войти"}), 401
-
     post = Post.query.get_or_404(post_id)
     if post.author != session['username']:
         return jsonify({"success": False, "message": "У вас нет прав для удаления этого поста"}), 403
-    
+
     Like.query.filter_by(post_id=post_id).delete()
     Notification.query.filter_by(post_id=post_id).delete()
-    
+
     comments_to_delete = Comment.query.filter_by(post_id=post_id).all()
     for comment in comments_to_delete:
         Notification.query.filter_by(comment_id=comment.id).delete()
-    
+
     Comment.query.filter_by(post_id=post_id).delete()
-    
+
     db.session.delete(post)
     db.session.commit()
-    
+
     return jsonify({
-        "success": True, 
-        "message": "Пост успешно удален", 
+        "success": True,
+        "message": "Пост успешно удален",
         "redirect": url_for('index')
     })
 
@@ -834,14 +799,11 @@ def delete_post(post_id):
 def get_notifications():
     if not is_logged_in():
         return jsonify({"error": "Unauthorized"}), 401
-
     user_id = get_user_id()
     if not user_id:
         return jsonify({"error": "User not found"}), 401
-
     notifications = Notification.query.filter_by(user_id=user_id).order_by(Notification.created_at.desc()).limit(20).all()
     unread_count = Notification.query.filter_by(user_id=user_id, is_read=False).count()
-
     notifications_data = []
     for notif in notifications:
         notifications_data.append({
@@ -854,7 +816,6 @@ def get_notifications():
             'is_read': notif.is_read,
             'created_at': notif.created_at.strftime('%d.%m.%Y %H:%M')
         })
-
     return jsonify({
         "notifications": notifications_data,
         "unread_count": unread_count
@@ -864,14 +825,11 @@ def get_notifications():
 def mark_notifications_read():
     if not is_logged_in():
         return jsonify({"error": "Unauthorized"}), 401
-
     user_id = get_user_id()
     if not user_id:
         return jsonify({"error": "User not found"}), 401
-
     Notification.query.filter_by(user_id=user_id, is_read=False).update({'is_read': True})
     db.session.commit()
-
     return jsonify({"success": True})
 
 if __name__ == '__main__':
