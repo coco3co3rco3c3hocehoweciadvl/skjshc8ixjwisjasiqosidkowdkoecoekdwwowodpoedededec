@@ -10,6 +10,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///nerestreddit.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SESSION_TYPE'] = 'filesystem'
 db = SQLAlchemy(app)
+
 MSK_TZ = timezone(timedelta(hours=3))
 
 def get_msk_time():
@@ -626,7 +627,7 @@ def create_post():
     <div class="bg-blue-900 p-6 rounded-xl shadow-md max-w-2xl mx-auto">
         <h2 class="text-xl font-bold mb-4 text-blue-200">Новый пост</h2>
         {"<p class='text-red-400 mb-2'>" + error + "</p>" if error else ""}
-        <form method="post" class="space-y-4" onsubmit="event => {{ if checkActionDelay() {{ createPost(event) }} else {{ event.preventDefault(); showNotification('Подождите перед следующим действием!', 'error'); return false; }}}">
+        <form method="post" class="space-y-4" onsubmit="event => {{ if (checkActionDelay()) {{ createPost(event) }} else {{ event.preventDefault(); showNotification('Подождите перед следующим действием!', 'error'); return false; }} }}">
             <input name="title" class="w-full p-2 border rounded bg-blue-800 text-blue-100 focus:border-blue-400 transition-colors" placeholder="Заголовок" required>
             <textarea name="content" class="w-full p-2 border rounded h-32 bg-blue-800 text-blue-100 focus:border-blue-400 transition-colors resize-none" placeholder="Содержание..." required></textarea>
             <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded w-full hover:bg-blue-500 transition-colors transform hover:scale-105">Опубликовать</button>
@@ -641,6 +642,7 @@ def view_post(post_id):
         return redirect(url_for('login'))
     post = Post.query.get_or_404(post_id)
     comments = Comment.query.filter_by(post_id=post_id, parent_id=None).order_by(Comment.created_at).all()
+
     def render_comments(comments):
         comments_html = ""
         for comment in comments:
@@ -671,6 +673,7 @@ def view_post(post_id):
             </div>
             """
         return comments_html
+
     comments_html = render_comments(comments)
     content = f"""
     <div class="post-container">
@@ -733,7 +736,7 @@ def add_comment(post_id):
             create_notification(
                 post_author_user.id,
                 'reply',
-                f'ответил на ваш комментарий в посте "{post.title}"',
+                f'ответил на ваш комментарий в посте \"{post.title}\"',
                 session['username'],
                 post_id=post_id,
                 comment_id=comment.id
@@ -742,7 +745,7 @@ def add_comment(post_id):
             create_notification(
                 post_author_user.id,
                 'comment',
-                f'прокомментировал ваш пост "{post.title}"',
+                f'прокомментировал ваш пост \"{post.title}\"',
                 session['username'],
                 post_id=post_id,
                 comment_id=comment.id
@@ -754,7 +757,7 @@ def add_comment(post_id):
             create_notification(
                 parent_author_user.id,
                 'reply',
-                f'ответил на ваш комментарий в посте "{post.title}"',
+                f'ответил на ваш комментарий в посте \"{post.title}\"',
                 session['username'],
                 post_id=post_id,
                 comment_id=comment.id
@@ -784,7 +787,7 @@ def like_post(post_id):
             create_notification(
                 post_author_user.id,
                 'like',
-                f'поставил лайк вашему посту "{post.title}"',
+                f'поставил лайк вашему посту \"{post.title}\"',
                 session['username'],
                 post_id=post_id
             )
