@@ -102,7 +102,7 @@ def check_session():
         if not user:
             session.pop('username', None)
 
-def checkActionDelay():
+def check_action_delay():
     last_action_time = session.get('last_action_time')
     current_time = datetime.now().timestamp()
     delay = 10
@@ -643,7 +643,7 @@ def create_post():
     error = ""
     notification = None
     if request.method == 'POST':
-        if not checkActionDelay():
+        if not check_action_delay():
             return jsonify({"success": False, "message": "Подождите перед следующим действием!"})
         title = request.form['title'].strip()
         content = request.form['content'].strip()
@@ -764,7 +764,7 @@ def view_post(post_id):
 def add_comment(post_id):
     if not is_logged_in():
         return jsonify({"success": False, "message": "Необходимо войти"})
-    if not checkActionDelay():
+    if not check_action_delay():
         return jsonify({"success": False, "message": "Подождите перед следующим действием!"})
     content = request.form['content'].strip()
     parent_id = request.form.get('parent_id')
@@ -906,8 +906,8 @@ def mark_notifications_read():
     return jsonify({"success": True})
 
 @app.route('/check-action-delay', methods=['POST'])
-def check_action_delay():
-    if not checkActionDelay():
+def check_action_delay_route():
+    if not check_action_delay():
         last_action_time = session.get('last_action_time')
         current_time = datetime.now().timestamp()
         delay = 10
